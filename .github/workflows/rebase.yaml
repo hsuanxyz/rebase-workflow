@@ -1,0 +1,45 @@
+name: Manual Rebase
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_branch:
+        description: 'Base branch'
+        required: true
+        default: 'main'
+      head_branch:
+        description: 'Head branch to rebase'
+        required: true
+
+jobs:
+  rebase:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Fetch all branches
+        run: git fetch --all
+
+      - name: Perform rebase
+        run: |
+          git checkout ${{ github.event.inputs.head_branch }}
+          git rebase origin/${{ github.event.inputs.base_branch }}
+
+      - name: Check for conflicts
+        run: |
+          if git status | grep -q 'You have unmerged paths'; then
+            echo "Rebase resulted in conflicts. Please resolve manually."
+            git status
+            exit 1
+          fi
+
+      - name: Push changes
+        if: success()
+        run: |
+          git push origin ${{ github.event.inputs.head_branch }} --force
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
